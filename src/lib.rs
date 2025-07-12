@@ -93,6 +93,13 @@
 //!     let decoded = Test::decode(&mut data.as_slice()).unwrap();
 //!     assert_eq!(decoded, TestV1 { data: 42 });
 //! ```
+#![deny(
+    warnings,
+    clippy::unwrap_used,
+    clippy::unnecessary_unwrap,
+    clippy::pedantic,
+    missing_docs
+)]
 
 use std::io::{Read, Write};
 
@@ -100,6 +107,7 @@ use bincode::error::{DecodeError, EncodeError};
 
 /// Versioning error trait
 pub trait Error: std::error::Error + From<DecodeError> + From<EncodeError> {
+    /// Create a new error for an invalid version.
     fn invalid_version(version: u32) -> Self;
 }
 
@@ -115,30 +123,56 @@ pub trait Error: std::error::Error + From<DecodeError> + From<EncodeError> {
 ///
 /// `Version` defines the version of the data that is being versioned.
 pub trait Versioned<E: Error>: Sized {
+    /// The type that the versioned data is encoding
     type Output: bincode::Decode<()> + bincode::Encode;
+    /// The version tag of this data
     const VERSION: u32;
 
+    /// Decodes versioned data and validates the version. Will consume the version from the reader.
+    /// # Errors
+    /// - Returns an error if the version is invalid.
+    /// - Returns an error if the data is invalid.
     fn decode(reader: &mut impl Read) -> Result<Self::Output, E> {
         let config = bincode::config::standard();
         let version: u32 = bincode::decode_from_std_read(reader, config)?;
         Self::decode_with_version(reader, version)
     }
+
+    /// Encodes the data including the version tag.
+    ///
+    /// # Errors
+    /// - Returns an error if the data failes to encode.
     fn encode(data: &Self::Output, writer: &mut impl Write) -> Result<(), E> {
         let config = bincode::config::standard();
         bincode::encode_into_std_write(Self::VERSION, writer, config).map_err(E::from)?;
         bincode::encode_into_std_write(data, writer, config).map_err(E::from)?;
         Ok(())
     }
+
+    /// Decodes the data with a provided version tag. Is helpful for use in combination with `Upgrade`.
+    ///
+    /// # Errors
+    /// - Returns an error if the version is invalid.
+    /// - Returns an error if the data is invalid.
     #[inline]
     fn decode_with_version(reader: &mut impl Read, version: u32) -> Result<Self::Output, E> {
         if version == Self::VERSION {
-            Self::decode_body(reader)
+            // We have validated the version, so we can safely decode the body.
+            unsafe { Self::decode_body(reader) }
         } else {
             Err(E::invalid_version(version))
         }
     }
+    /// Decodes only the body, assuming the version has already been validated.
+    ///
+    /// # Safety
+    /// This function is marked unsafe because it does not validate the version and when
+    /// used without care might lead to data corruption or other issues.
+    ///
+    /// # Errors
+    /// - Returns an error if the data is invalid.
     #[inline]
-    fn decode_body(reader: &mut impl Read) -> Result<Self::Output, E> {
+    unsafe fn decode_body(reader: &mut impl Read) -> Result<Self::Output, E> {
         let config = bincode::config::standard();
         bincode::decode_from_std_read(reader, config).map_err(E::from)
     }
@@ -165,6 +199,11 @@ where
     Latest: Versioned<E>,
     Latest::Output: TryFrom<Prior::Output>,
 {
+    /// Creates a new `Upgrade` instance.
+    ///
+    /// In debug mode this will assert on the version order being correct, however during runtime
+    /// correctness is assumed.
+    #[must_use]
     pub fn new() -> Self {
         debug_assert!(
             Prior::VERSION < Latest::VERSION,
@@ -175,6 +214,18 @@ where
         Self {
             _marker: std::marker::PhantomData,
         }
+    }
+}
+
+impl<E, Latest, Prior> Default for Upgrade<E, Latest, Prior>
+where
+    E: Error + From<<Latest::Output as TryFrom<Prior::Output>>::Error>,
+    Prior: Versioned<E>,
+    Latest: Versioned<E>,
+    Latest::Output: TryFrom<Prior::Output>,
+{
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -226,7 +277,7 @@ mod tests {
         type Error = Error;
         fn try_from(v0: TestV0) -> Result<Self, Self::Error> {
             Ok(Self {
-                data: v0.data as u16,
+                data: u16::from(v0.data),
             })
         }
     }
@@ -235,7 +286,7 @@ mod tests {
         type Error = Error;
         fn try_from(v1: TestV1) -> Result<Self, Self::Error> {
             Ok(Self {
-                data: v1.data as u32,
+                data: u32::from(v1.data),
             })
         }
     }
