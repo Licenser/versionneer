@@ -2,97 +2,89 @@
 //! It provides the `Version` trait that defines the version of data and it's encoding and decoding.
 //!
 //! ```rust
-//!     use versionneer::{Upgrade, Versioned};
+//!    use versionneer::{versioned, Encodable, Decodable, bincode};
 //!
-//!     #[derive(Debug, thiserror::Error)]
-//!     enum Error {
-//!         #[error("Invalid version: {0}")]
-//!         InvalidVersion(u32),
-//!         #[error(transparent)]
-//!         Decode(#[from] bincode::error::DecodeError),
-//!         #[error(transparent)]
-//!         Encoder(#[from] bincode::error::EncodeError),
-//!     }
-//!     impl versionneer::Error for Error {
-//!         fn invalid_version(version: u32) -> Self {
-//!             Self::InvalidVersion(version)
-//!         }
-//!     }
+//!    #[derive(Debug, thiserror::Error)]
+//!    enum Error {
+//!        #[error("Invalid version: {0}")]
+//!        InvalidVersion(u32),
+//!        #[error(transparent)]
+//!        Decode(#[from] ::bincode::error::DecodeError),
+//!        #[error(transparent)]
+//!        Encoder(#[from] ::bincode::error::EncodeError),
+//!    }
+//!    impl versionneer::Error for Error {
+//!        fn invalid_version(version: u32) -> Self {
+//!            Self::InvalidVersion(version)
+//!        }
+//!    }
 //!
-//!     #[derive(Debug, PartialEq, Eq, bincode::Decode, bincode::Encode)]
-//!     struct TestV0 {
-//!         data: u8,
-//!     }
-//!     impl Versioned<Error> for TestV0 {
-//!         type Output = TestV0;
-//!         const VERSION: u32 = 0;
-//!     }
+//!    #[derive(Debug, PartialEq, Eq, ::bincode::Decode, ::bincode::Encode)]
+//!    struct TestV0 {
+//!        data: u8,
+//!    }
+//!    versioned!(TestV0, 0);
 //!
-//!     let mut data = Vec::new();
-//!
-//!     let test = TestV0 { data: 42 };
-//!     TestV0::encode(&test, &mut data).unwrap();
-//!
-//!     let decoded = TestV0::decode(&mut data.as_slice()).unwrap();
-//!     assert_eq!(test, decoded);
+//!    let mut data = Vec::new();
+//!    let mut enc = bincode::Encoder::new(&mut data);
+//!    let test = TestV0 { data: 42 };
+//!    <TestV0 as Encodable<_, Error>>::encode(&test, &mut enc).expect("Failed to encode");
+//!    let mut reader = data.as_slice();
+//!    let mut dec = bincode::Decoder::new(&mut reader);
+//!    let decoded = <TestV0 as Decodable<_, Error>>::decode(&mut dec).expect("Failed to decode");
+//!    assert_eq!(test, decoded);
 //! ```
 //!
 //! In addition it provides the `Upgrade` struct that can be used to create a upgrade chain for versioned data.
 //!
 //! ```rust
-//!     use versionneer::{Upgrade, Versioned};
+//!    use versionneer::{versioned, Encodable, Decodable, bincode, Upgrade};
 //!
-//!     #[derive(Debug, thiserror::Error)]
-//!     enum Error {
-//!         #[error("Invalid version: {0}")]
-//!         InvalidVersion(u32),
-//!         #[error(transparent)]
-//!         Decode(#[from] bincode::error::DecodeError),
-//!         #[error(transparent)]
-//!         Encoder(#[from] bincode::error::EncodeError),
-//!     }
-//!     impl versionneer::Error for Error {
-//!         fn invalid_version(version: u32) -> Self {
-//!             Self::InvalidVersion(version)
-//!         }
-//!     }
+//!    #[derive(Debug, thiserror::Error)]
+//!    enum Error {
+//!        #[error("Invalid version: {0}")]
+//!        InvalidVersion(u32),
+//!        #[error(transparent)]
+//!        Decode(#[from] ::bincode::error::DecodeError),
+//!        #[error(transparent)]
+//!        Encoder(#[from] ::bincode::error::EncodeError),
+//!    }
+//!    impl versionneer::Error for Error {
+//!        fn invalid_version(version: u32) -> Self {
+//!            Self::InvalidVersion(version)
+//!        }
+//!    }
 //!
-//!     #[derive(Debug, PartialEq, Eq, bincode::Decode, bincode::Encode)]
-//!     struct TestV0 {
-//!         data: u8,
-//!     }
+//!    #[derive(Debug, PartialEq, Eq, ::bincode::Decode, ::bincode::Encode)]
+//!    struct TestV0 {
+//!        data: u8,
+//!    }
+//!    versioned!(TestV0, 0);
 //!
-//!     impl Versioned<Error> for TestV0 {
-//!         type Output = TestV0;
-//!         const VERSION: u32 = 0;
-//!     }
+//!    #[derive(Debug, PartialEq, Eq, ::bincode::Decode, ::bincode::Encode)]
+//!    struct TestV1 {
+//!        data: u16,
+//!    }
+//!    versioned!(TestV1, 1);
 //!
-//!     #[derive(Debug, PartialEq, Eq, bincode::Decode, bincode::Encode)]
-//!     struct TestV1 {
-//!         data: u16,
-//!     }
+//!    impl TryFrom<TestV0> for TestV1 {
+//!        type Error = Error;
+//!        fn try_from(value: TestV0) -> Result<Self, Self::Error> {
+//!            Ok(TestV1 { data: u16::from(value.data) })
+//!        }
+//!    }
 //!
-//!     impl Versioned<Error> for TestV1 {
-//!         type Output = TestV1;
-//!         const VERSION: u32 = 1;
-//!     }
-//!
-//!     impl TryFrom<TestV0> for TestV1 {
-//!         type Error = Error;
-//!         fn try_from(value: TestV0) -> Result<Self, Self::Error> {
-//!             Ok(TestV1 { data: value.data as u16 })
-//!         }
-//!     }
-//!
-//!     type Test = Upgrade<Error, TestV1, TestV0>;
-//!     let mut data = Vec::new();
-//!
-//!     let test = TestV0 { data: 42 };
-//!     TestV0::encode(&test, &mut data).unwrap();
-//!
-//!     let decoded = Test::decode(&mut data.as_slice()).unwrap();
-//!     assert_eq!(decoded, TestV1 { data: 42 });
+//!    type Latest = Upgrade<TestV1, TestV0, Error>;
+//!    let mut data = Vec::new();
+//!    let mut enc = bincode::Encoder::new(&mut data);
+//!    let test = TestV0 { data: 42 };
+//!    <TestV0 as Encodable<_, Error>>::encode(&test, &mut enc).expect("Failed to encode");
+//!    let mut reader = data.as_slice();
+//!    let mut dec = bincode::Decoder::new(&mut reader);
+//!    let decoded = Latest::decode(&mut dec).expect("Failed to decode");
+//!    assert_eq!(decoded, TestV1 { data: 42 });
 //! ```
+
 #![deny(
     warnings,
     clippy::unwrap_used,
@@ -101,14 +93,64 @@
     missing_docs
 )]
 
-use std::io::{Read, Write};
-
-use bincode::error::{DecodeError, EncodeError};
+#[cfg(feature = "bincode")]
+/// Bincode encoding and decoding for versionneer
+pub mod bincode;
 
 /// Versioning error trait
-pub trait Error: std::error::Error + From<DecodeError> + From<EncodeError> {
+pub trait Error: std::error::Error {
     /// Create a new error for an invalid version.
     fn invalid_version(version: u32) -> Self;
+}
+
+/// A decoder for versionneer it is used to both encode the data as well as the version.
+pub trait Decoder {
+    /// The error type for the decoder.
+    type Error: std::error::Error;
+    /// Decodes the version from the decoder.
+    ///
+    /// # Errors
+    /// This function will return an error if the decoder fails to decode the version.
+    fn decode_version(&mut self) -> Result<u32, Self::Error>;
+}
+
+/// Decode trait for versioned data, it is used in combination with the `Decoder` trait.
+///
+/// Many decoders will provide a blanket implementation for this trait.
+pub trait Decode<D: Decoder>
+where
+    Self: Sized,
+{
+    /// Decode the data from the decoder.
+    ///
+    /// # Errors
+    /// This function will return an error if the data cannot be decoded.
+    fn decode_data(decoder: &mut D) -> Result<Self, D::Error>;
+}
+
+/// The `Encoder` trait is used to encode versioned data.
+pub trait Encoder {
+    /// The error type for the encoder.
+    type Error: std::error::Error;
+    /// Encodes the version to the encoder.
+    ///
+    /// # Errors
+    /// This function will return an error if encoder fails to encode the version.
+    fn encode_version(&mut self, version: u32) -> Result<(), Self::Error>;
+}
+
+/// The `Encode` trait is used to encode versioned data.
+///
+/// Many `Encoder`s will provide a blanket implementation for this trait.
+pub trait Encode<E: Encoder>
+where
+    Self: Sized,
+{
+    /// Encodes the data to the encoder.
+    ///
+    /// # Errors
+    /// This function will return an error if encoder fails to encode the data.
+    fn encode_data(&self, encoder: &mut E) -> Result<(), E::Error>;
 }
 
 /// Versioned trait
@@ -122,31 +164,45 @@ pub trait Error: std::error::Error + From<DecodeError> + From<EncodeError> {
 /// `Output` defines the type of the data that is being versioned.
 ///
 /// `Version` defines the version of the data that is being versioned.
-pub trait Versioned<E: Error>: Sized {
+pub trait Versioned<Err: Error>: Sized {
     /// The type that the versioned data is encoding
-    type Output: bincode::Decode<()> + bincode::Encode;
+    type Output;
     /// The version tag of this data
     const VERSION: u32;
+}
 
-    /// Decodes versioned data and validates the version. Will consume the version from the reader.
-    /// # Errors
-    /// - Returns an error if the version is invalid.
-    /// - Returns an error if the data is invalid.
-    fn decode(reader: &mut impl Read) -> Result<Self::Output, E> {
-        let config = bincode::config::standard();
-        let version: u32 = bincode::decode_from_std_read(reader, config)?;
-        Self::decode_with_version(reader, version)
-    }
-
+/// This trait is used to mark a versioned type as encodable. Usually this is provided by the `versioned!` macro.
+pub trait Encodable<Enc, Err>: Versioned<Err>
+where
+    Err: Error + From<Enc::Error>,
+    Enc: Encoder,
+    Self::Output: Encode<Enc>,
+{
     /// Encodes the data including the version tag.
     ///
     /// # Errors
     /// - Returns an error if the data failes to encode.
-    fn encode(data: &Self::Output, writer: &mut impl Write) -> Result<(), E> {
-        let config = bincode::config::standard();
-        bincode::encode_into_std_write(Self::VERSION, writer, config).map_err(E::from)?;
-        bincode::encode_into_std_write(data, writer, config).map_err(E::from)?;
+    fn encode(data: &Self::Output, encoder: &mut Enc) -> Result<(), Err> {
+        encoder.encode_version(Self::VERSION)?;
+        data.encode_data(encoder)?;
         Ok(())
+    }
+}
+
+/// This trait is used to mark a versioned type as decodable. Usually this is provided by the `versioned!` macro.
+pub trait Decodable<Dec, Err>: Versioned<Err>
+where
+    Err: Error + From<Dec::Error>,
+    Dec: Decoder,
+    Self::Output: Decode<Dec>,
+{
+    /// Decodes versioned data and validates the version. Will consume the version from the reader.
+    /// # Errors
+    /// - Returns an error if the version is invalid.
+    /// - Returns an error if the data is invalid.
+    fn decode(decoder: &mut Dec) -> Result<Self::Output, Err> {
+        let version: u32 = decoder.decode_version()?;
+        Self::decode_with_version(decoder, version)
     }
 
     /// Decodes the data with a provided version tag. Is helpful for use in combination with `Upgrade`.
@@ -155,12 +211,12 @@ pub trait Versioned<E: Error>: Sized {
     /// - Returns an error if the version is invalid.
     /// - Returns an error if the data is invalid.
     #[inline]
-    fn decode_with_version(reader: &mut impl Read, version: u32) -> Result<Self::Output, E> {
+    fn decode_with_version(decoder: &mut Dec, version: u32) -> Result<Self::Output, Err> {
         if version == Self::VERSION {
             // We have validated the version, so we can safely decode the body.
-            unsafe { Self::decode_body(reader) }
+            unsafe { Self::decode_body(decoder) }
         } else {
-            Err(E::invalid_version(version))
+            Err(Err::invalid_version(version))
         }
     }
     /// Decodes only the body, assuming the version has already been validated.
@@ -172,9 +228,9 @@ pub trait Versioned<E: Error>: Sized {
     /// # Errors
     /// - Returns an error if the data is invalid.
     #[inline]
-    unsafe fn decode_body(reader: &mut impl Read) -> Result<Self::Output, E> {
-        let config = bincode::config::standard();
-        bincode::decode_from_std_read(reader, config).map_err(E::from)
+    unsafe fn decode_body(decoder: &mut Dec) -> Result<Self::Output, Err> {
+        let data = Self::Output::decode_data(decoder)?;
+        Ok(data)
     }
 }
 
@@ -183,63 +239,50 @@ pub trait Versioned<E: Error>: Sized {
 /// `Prior::VERSION` must be less than `Latest::VERSION`!
 ///
 /// Upgrades can be chained!
-pub struct Upgrade<E, Latest, Prior>
+pub struct Upgrade<Latest, Prior, Err>
 where
-    E: Error + From<<Latest::Output as TryFrom<Prior::Output>>::Error>,
-    Prior: Versioned<E>,
-    Latest: Versioned<E>,
+    Err: Error,
+    Prior: Versioned<Err>,
+    Latest: Versioned<Err>,
     Latest::Output: TryFrom<Prior::Output>,
 {
-    _marker: std::marker::PhantomData<(Prior, Latest, E)>,
-}
-impl<E, Latest, Prior> Upgrade<E, Latest, Prior>
-where
-    E: Error + From<<Latest::Output as TryFrom<Prior::Output>>::Error>,
-    Prior: Versioned<E>,
-    Latest: Versioned<E>,
-    Latest::Output: TryFrom<Prior::Output>,
-{
-    /// Creates a new `Upgrade` instance.
-    ///
-    /// In debug mode this will assert on the version order being correct, however during runtime
-    /// correctness is assumed.
-    #[must_use]
-    pub fn new() -> Self {
-        debug_assert!(
-            Prior::VERSION < Latest::VERSION,
-            "Upgrade versions need to increase! Prior::Version({}) >= Latest::Version({})",
-            Prior::VERSION,
-            Latest::VERSION
-        );
-        Self {
-            _marker: std::marker::PhantomData,
-        }
-    }
+    _marker: std::marker::PhantomData<(Prior, Latest, Err)>,
 }
 
-impl<E, Latest, Prior> Default for Upgrade<E, Latest, Prior>
+impl<Latest, Prior, Err> Versioned<Err> for Upgrade<Latest, Prior, Err>
 where
-    E: Error + From<<Latest::Output as TryFrom<Prior::Output>>::Error>,
-    Prior: Versioned<E>,
-    Latest: Versioned<E>,
-    Latest::Output: TryFrom<Prior::Output>,
-{
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl<E, Latest, Prior> Versioned<E> for Upgrade<E, Latest, Prior>
-where
-    E: Error + From<<Latest::Output as TryFrom<Prior::Output>>::Error>,
-    Prior: Versioned<E>,
-    Latest: Versioned<E>,
+    Err: Error,
+    Prior: Versioned<Err>,
+    Latest: Versioned<Err>,
     Latest::Output: TryFrom<Prior::Output>,
 {
     type Output = Latest::Output;
     const VERSION: u32 = Latest::VERSION;
+}
 
-    fn decode_with_version(reader: &mut impl Read, version: u32) -> Result<Self::Output, E> {
+impl<Latest, Prior, Enc, Err> Encodable<Enc, Err> for Upgrade<Latest, Prior, Err>
+where
+    Err: Error + From<<Enc as Encoder>::Error>,
+    Enc: Encoder,
+    Prior: Versioned<Err>,
+    Latest: Versioned<Err>,
+    Latest::Output: Encode<Enc>,
+    Latest::Output: TryFrom<Prior::Output>,
+{
+}
+
+impl<Latest, Prior, Dec, Err> Decodable<Dec, Err> for Upgrade<Latest, Prior, Err>
+where
+    Dec: Decoder,
+    Prior: Versioned<Err> + Decodable<Dec, Err>,
+    Prior::Output: Decode<Dec>,
+    Latest: Versioned<Err> + Decodable<Dec, Err>,
+    Latest::Output: TryFrom<Prior::Output> + Decode<Dec>,
+    Err: Error
+        + From<<Dec as Decoder>::Error>
+        + From<<Latest::Output as TryFrom<Prior::Output>>::Error>,
+{
+    fn decode_with_version(decoder: &mut Dec, version: u32) -> Result<Self::Output, Err> {
         debug_assert!(
             Prior::VERSION < Latest::VERSION,
             "Upgrade versions need to increase! Prior::Version({}) >= Latest::Version({})",
@@ -247,117 +290,40 @@ where
             Latest::VERSION
         );
         if version == Latest::VERSION {
-            Latest::decode_with_version(reader, version)
+            Latest::decode_with_version(decoder, version)
         } else {
-            let prior = Prior::decode_with_version(reader, version)?;
+            let prior = Prior::decode_with_version(decoder, version)?;
             Ok(Latest::Output::try_from(prior)?)
         }
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::{Upgrade, Versioned};
-
-    #[derive(Debug, PartialEq, Eq, bincode::Decode, bincode::Encode)]
-    struct TestV0 {
-        data: u8,
-    }
-
-    #[derive(Debug, PartialEq, Eq, bincode::Decode, bincode::Encode)]
-    struct TestV1 {
-        data: u16,
-    }
-    #[derive(Debug, PartialEq, Eq, bincode::Decode, bincode::Encode)]
-    struct TestV2 {
-        data: u32,
-    }
-
-    impl TryFrom<TestV0> for TestV1 {
-        type Error = Error;
-        fn try_from(v0: TestV0) -> Result<Self, Self::Error> {
-            Ok(Self {
-                data: u16::from(v0.data),
-            })
+/// This macro is a shortcut to crate a versioned type with the associated `Encodable` and `Decodable` traits.
+#[macro_export]
+macro_rules! versioned {
+    ($type:ty, $ver:expr) => {
+        impl<Err> $crate::Versioned<Err> for $type
+        where
+            Err: $crate::Error,
+        {
+            type Output = $type;
+            const VERSION: u32 = $ver;
         }
-    }
 
-    impl TryFrom<TestV1> for TestV2 {
-        type Error = Error;
-        fn try_from(v1: TestV1) -> Result<Self, Self::Error> {
-            Ok(Self {
-                data: u32::from(v1.data),
-            })
+        impl<Enc, Err> $crate::Encodable<Enc, Err> for $type
+        where
+            Err: $crate::Error + From<<Enc as $crate::Encoder>::Error>,
+            Enc: $crate::Encoder,
+            <Self as $crate::Versioned<Err>>::Output: $crate::Encode<Enc>,
+        {
         }
-    }
 
-    #[derive(Debug, thiserror::Error)]
-    enum Error {
-        #[error("Invalid version: {0}")]
-        InvalidVersion(u32),
-        #[error(transparent)]
-        Decode(#[from] bincode::error::DecodeError),
-        #[error(transparent)]
-        Encoder(#[from] bincode::error::EncodeError),
-    }
-    impl super::Error for Error {
-        fn invalid_version(version: u32) -> Self {
-            Self::InvalidVersion(version)
+        impl<Dec, Err> $crate::Decodable<Dec, Err> for $type
+        where
+            Err: $crate::Error + From<<Dec as $crate::Decoder>::Error>,
+            Dec: $crate::Decoder,
+            <Self as $crate::Versioned<Err>>::Output: $crate::Decode<Dec>,
+        {
         }
-    }
-
-    impl Versioned<Error> for TestV0 {
-        type Output = Self;
-        const VERSION: u32 = 0;
-    }
-
-    impl Versioned<Error> for TestV1 {
-        type Output = Self;
-        const VERSION: u32 = 1;
-    }
-
-    impl Versioned<Error> for TestV2 {
-        type Output = Self;
-        const VERSION: u32 = 2;
-    }
-
-    #[test]
-    fn test_v1() -> Result<(), Error> {
-        let mut data = Vec::new();
-        TestV1::encode(&TestV1 { data: 42 }, &mut data)?;
-        let mut reader = data.as_slice();
-        let v1 = TestV1::decode(&mut reader)?;
-        assert_eq!(v1.data, 42);
-        Ok(())
-    }
-    #[test]
-    fn test_v0() -> Result<(), Error> {
-        let mut data = Vec::new();
-        TestV0::encode(&TestV0 { data: 42 }, &mut data)?;
-        let mut reader = data.as_slice();
-        let v0 = TestV0::decode(&mut reader)?;
-        assert_eq!(v0.data, 42);
-        Ok(())
-    }
-
-    #[test]
-    fn test_upgrade_v1() -> Result<(), Error> {
-        type Latest = Upgrade<Error, TestV1, TestV0>;
-        let mut data = Vec::new();
-        TestV0::encode(&TestV0 { data: 42 }, &mut data)?;
-        let mut reader = data.as_slice();
-        let v1 = Latest::decode(&mut reader)?;
-        assert_eq!(v1.data, 42);
-        Ok(())
-    }
-    #[test]
-    fn test_upgrade_v2() -> Result<(), Error> {
-        type Latest = Upgrade<Error, TestV2, Upgrade<Error, TestV1, TestV0>>;
-        let mut data = Vec::new();
-        TestV0::encode(&TestV0 { data: 42 }, &mut data)?;
-        let mut reader = data.as_slice();
-        let v0 = Latest::decode(&mut reader)?;
-        assert_eq!(v0.data, 42);
-        Ok(())
-    }
+    };
 }
