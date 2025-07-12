@@ -1,0 +1,13 @@
+[package]
+name = "versionneer"
+version = "0.1.0"
+license = "Apache-2.0/MIT"
+description = "Version handling for serialization and deserialization"
+authors = ["Heinz N. Gies <heinz@licenser.net>"]
+documentation = "https://docs.rs/versionneer"
+readme = "README.md"
+edition = "2024"
+
+[dependencies]
+bincode = "2.0.1"
+thiserror = "2.0.12"
