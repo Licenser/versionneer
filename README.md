@@ -28,13 +28,13 @@ A simple version management crate for encoded data that allows for simple versio
    struct TestV0 {
        data: u8,
    }
-   versioned!(TestV0, 0);
+   versioned!(TestV0, 0, Error);
 
    #[derive(Debug, PartialEq, Eq, ::bincode::Decode, ::bincode::Encode)]
    struct TestV1 {
        data: u16,
    }
-   versioned!(TestV1, 1);
+   versioned!(TestV1, 1, Error);
 
    impl TryFrom<TestV0> for TestV1 {
        type Error = Error;
@@ -47,7 +47,7 @@ A simple version management crate for encoded data that allows for simple versio
    let mut data = Vec::new();
    let mut enc = bincode::Encoder::new(&mut data);
    let test = TestV0 { data: 42 };
-   <TestV0 as Encodable<_, Error>>::encode(&test, &mut enc).expect("Failed to encode");
+   TestV0::encode(&test, &mut enc).expect("Failed to encode");
    let mut reader = data.as_slice();
    let mut dec = bincode::Decoder::new(&mut reader);
    let decoded = Latest::decode(&mut dec).expect("Failed to decode");

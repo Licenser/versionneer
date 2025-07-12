@@ -23,15 +23,15 @@
 //!    struct TestV0 {
 //!        data: u8,
 //!    }
-//!    versioned!(TestV0, 0);
+//!    versioned!(TestV0, 0, Error);
 //!
 //!    let mut data = Vec::new();
 //!    let mut enc = bincode::Encoder::new(&mut data);
 //!    let test = TestV0 { data: 42 };
-//!    <TestV0 as Encodable<_, Error>>::encode(&test, &mut enc).expect("Failed to encode");
+//!    TestV0::encode(&test, &mut enc).expect("Failed to encode");
 //!    let mut reader = data.as_slice();
 //!    let mut dec = bincode::Decoder::new(&mut reader);
-//!    let decoded = <TestV0 as Decodable<_, Error>>::decode(&mut dec).expect("Failed to decode");
+//!    let decoded = TestV0::decode(&mut dec).expect("Failed to decode");
 //!    assert_eq!(test, decoded);
 //! ```
 //!
@@ -59,13 +59,13 @@
 //!    struct TestV0 {
 //!        data: u8,
 //!    }
-//!    versioned!(TestV0, 0);
+//!    versioned!(TestV0, 0, Error);
 //!
 //!    #[derive(Debug, PartialEq, Eq, ::bincode::Decode, ::bincode::Encode)]
 //!    struct TestV1 {
 //!        data: u16,
 //!    }
-//!    versioned!(TestV1, 1);
+//!    versioned!(TestV1, 1, Error);
 //!
 //!    impl TryFrom<TestV0> for TestV1 {
 //!        type Error = Error;
@@ -78,7 +78,7 @@
 //!    let mut data = Vec::new();
 //!    let mut enc = bincode::Encoder::new(&mut data);
 //!    let test = TestV0 { data: 42 };
-//!    <TestV0 as Encodable<_, Error>>::encode(&test, &mut enc).expect("Failed to encode");
+//!    TestV0::encode(&test, &mut enc).expect("Failed to encode");
 //!    let mut reader = data.as_slice();
 //!    let mut dec = bincode::Decoder::new(&mut reader);
 //!    let decoded = Latest::decode(&mut dec).expect("Failed to decode");
@@ -299,8 +299,35 @@ where
 }
 
 /// This macro is a shortcut to crate a versioned type with the associated `Encodable` and `Decodable` traits.
+///
+/// The macro offers two versions:
+///
+/// - `versioned!($type, $ver:expr, $err:ty)` - Creates a versioned type with the associated `Encodable` and `Decodable` traits, using a specified error type.
+/// - `versioned!($type, $ver:expr)` - Creates a versioned type with the associated `Encodable` and `Decodable` traits, using a generic error type.
 #[macro_export]
 macro_rules! versioned {
+    ($type:ty, $ver:expr, $err:ty) => {
+        impl $crate::Versioned<$err> for $type {
+            type Output = $type;
+            const VERSION: u32 = $ver;
+        }
+
+        impl<Enc> $crate::Encodable<Enc, $err> for $type
+        where
+            Enc: $crate::Encoder,
+            $err: From<<Enc as $crate::Encoder>::Error>,
+            <Self as $crate::Versioned<$err>>::Output: $crate::Encode<Enc>,
+        {
+        }
+
+        impl<Dec> $crate::Decodable<Dec, $err> for $type
+        where
+            Dec: $crate::Decoder,
+            $err: From<<Dec as $crate::Decoder>::Error>,
+            <Self as $crate::Versioned<$err>>::Output: $crate::Decode<Dec>,
+        {
+        }
+    };
     ($type:ty, $ver:expr) => {
         impl<Err> $crate::Versioned<Err> for $type
         where
