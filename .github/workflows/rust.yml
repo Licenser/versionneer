@@ -20,9 +20,10 @@ jobs:
           components: llvm-tools-preview
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
-
       - name: Run Rustfmt
         run: cargo fmt -- --check
+      - name: Check semver
+        uses: obi1kenobi/cargo-semver-checks-action@v2
       - name: Build
         run: cargo build --verbose
       - name: Run clippy
