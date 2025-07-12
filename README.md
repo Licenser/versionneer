@@ -1,4 +1,4 @@
-# versionneer
+# versionneer ![Build Status] [![Latest Version]][crates.io]
 
 [Build Status]: https://github.com/Licenser/versionneer/workflows/Rust/badge.svg
 [Latest Version]: https://img.shields.io/crates/v/versionneer.svg
