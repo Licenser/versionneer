@@ -1,6 +1,6 @@
 [package]
 name = "versionneer"
-version = "0.2.0"
+version = "0.2.1"
 license = "Apache-2.0/MIT"
 description = "Version handling for serialization and deserialization"
 authors = ["Heinz N. Gies <heinz@licenser.net>"]

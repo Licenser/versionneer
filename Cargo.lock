@@ -105,7 +105,7 @@ checksum = "6d49784317cd0d1ee7ec5c716dd598ec5b4483ea832a2dced265471cc0f690ae"
 
 [[package]]
 name = "versionneer"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "bincode",
  "thiserror",
