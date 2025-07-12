@@ -28,7 +28,7 @@ jobs:
       - name: Run clippy
         run: cargo clippy -- -D warnings
       - name: Run tests
-        run: cargo llvm-cov
+        run: cargo llvm-cov --codecov --output-path ./lcov.txt
       - name: Upload coverage to Codecov
         uses: Wandalen/wretry.action@master
         with:
@@ -36,5 +36,6 @@ jobs:
           attempt_limit: 6
           attempt_delay: 10000
           with: |
+            token: ${{ secrets.CODECOV_TOKEN }}
             files: ./lcov.txt
             verbose: true
