@@ -1,8 +1,10 @@
-# versionneer ![Build Status] [![Latest Version]][crates.io]
+# versionneer ![Build Status] [![Latest Version]][crates.io] [![codecov]][codecov report]
 
 [Build Status]: https://github.com/Licenser/versionneer/workflows/Rust/badge.svg
 [Latest Version]: https://img.shields.io/crates/v/versionneer.svg
 [crates.io]: https://crates.io/crates/versionneer
+[codecov]: https://codecov.io/gh/Licenser/versionneer/branch/main/graph/badge.svg
+[codecov report]: https://codecov.io/gh/Licenser/versionneer
 
 A simple version management crate for encoded data that allows for simple versioning and upgrading of data structures.
 
