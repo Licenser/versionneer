@@ -1,6 +1,6 @@
 [package]
 name = "versionneer"
-version = "0.2.1"
+version = "0.2.2"
 license = "Apache-2.0/MIT"
 description = "Version handling for serialization and deserialization"
 authors = ["Heinz N. Gies <heinz@licenser.net>"]
@@ -10,6 +10,8 @@ edition = "2024"
 
 [dependencies]
 bincode = { version = "2.0.1", optional = true }
+
+[dev-dependencies]
 thiserror = "2.0.12"
 
 [features]
