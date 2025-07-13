@@ -1,6 +1,6 @@
 [package]
 name = "versionneer"
-version = "0.2.2"
+version = "0.2.3"
 license = "Apache-2.0/MIT"
 description = "Version handling for serialization and deserialization"
 authors = ["Heinz N. Gies <heinz@licenser.net>"]
@@ -16,4 +16,5 @@ thiserror = "2.0.12"
 
 [features]
 default = ["bincode"]
-bincode = ["dep:bincode"]
+std = []
+bincode = ["dep:bincode", "std"]
