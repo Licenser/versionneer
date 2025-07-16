@@ -1,11 +1,13 @@
 [package]
 name = "versionneer"
-version = "0.2.3"
+version = "0.2.4"
 license = "Apache-2.0/MIT"
 description = "Version handling for serialization and deserialization"
 authors = ["Heinz N. Gies <heinz@licenser.net>"]
 documentation = "https://docs.rs/versionneer"
 readme = "README.md"
+keywords = ["versioning", "version", "serialization", "deserialize", "encoding"]
+categories = ["encoding", "no-std"]
 edition = "2024"
 
 [dependencies]
