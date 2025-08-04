@@ -336,9 +336,9 @@ dependencies = [
 
 [[package]]
 name = "simd-json-derive"
-version = "0.16.0"
+version = "0.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f6a10b6bd98bee2641c84d7de1ac6f26e5b16f4db50478d93afea48e6ab25a8d"
+checksum = "1f7bccb318dab3a6ad2113f9a9b3da25212a49f25eec434c73f4395dac47c897"
 dependencies = [
  "chrono",
  "itoa",
@@ -425,7 +425,7 @@ dependencies = [
 
 [[package]]
 name = "versionneer"
-version = "0.2.4"
+version = "0.2.5"
 dependencies = [
  "bincode",
  "simd-json",
