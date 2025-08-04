@@ -90,6 +90,9 @@ In addition it provides the `Upgrade` struct that can be used to create a upgrad
 #[cfg(feature = "bincode")]
 /// Bincode encoding and decoding for versionneer
 pub mod bincode;
+#[cfg(feature = "simd-json")]
+/// simd-json based json encoding and decoding for versionneer
+pub mod simd_json;
 
 /// Versioning error trait
 pub trait Error: core::error::Error {
