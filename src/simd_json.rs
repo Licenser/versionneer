@@ -30,7 +30,7 @@ impl crate::Decoder for Decoder<'_> {
             .as_ref()
             .ok_or(DecodeError::AlreadyConsumed)?
             .as_value()
-            .get_u32("version")
+            .get_u32("v")
             .ok_or(DecodeError::InvalidVersionField)
     }
 }
@@ -111,7 +111,7 @@ where
             let Some(Node::String(key)) = tape.next() else {
                 return Err(JsonError::generic(ErrorType::Eof).into());
             };
-            if key == "version" {
+            if key == "v" {
                 match tape.next() {
                     None => return Err(JsonError::generic(ErrorType::Eof).into()),
                     Some(Node::Static(s)) if !s.is_u32() => {
@@ -120,7 +120,7 @@ where
                     _ => continue,
                 }
             }
-            if key != "data" {
+            if key != "d" {
                 return Err(DecodeError::InvalidFormat);
             }
 
@@ -192,9 +192,9 @@ where
         let Some(version) = encoder.version else {
             return Err(EncodeError::VersionNotDefined);
         };
-        encoder.writer.write_all(br#"{"version":"#)?;
+        encoder.writer.write_all(br#"{"v":"#)?;
         version.json_write(&mut encoder.writer)?;
-        encoder.writer.write_all(br#","data":"#)?;
+        encoder.writer.write_all(br#","d":"#)?;
         self.json_write(&mut encoder.writer)?;
         encoder.writer.write_all(b"}")?;
         Ok(())
